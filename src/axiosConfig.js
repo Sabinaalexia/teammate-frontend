@@ -1,9 +1,7 @@
 import axios from 'axios';
 
-// URL-ul backend-ului
 const API_URL = 'http://localhost:8080/api';
 
-// Creăm instanță Axios customizată
 const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
@@ -11,13 +9,18 @@ const axiosInstance = axios.create({
   }
 });
 
-// Interceptor: Adaugă token-ul automat la FIECARE request
+// Interceptor: Adaugă token-ul automat la FIECARE request (DOAR dacă există)
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
+    const token = sessionStorage.getItem('token');
+    
+    // NU trimite token pentru login/register
+    const isAuthEndpoint = config.url.includes('/auth/login') || config.url.includes('/auth/register');
+    
+    if (token && !isAuthEndpoint) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
@@ -25,14 +28,13 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Interceptor: Dacă primim 401 Unauthorized, șterge token-ul și redirecționează la login
+// Interceptor: Dacă primim 401 Unauthorized, șterge token-ul
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token invalid sau expirat
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

@@ -1,8 +1,11 @@
 import { useState } from 'react';
-iimport axios from '../axiosConfig';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from '../axiosConfig';
 import logo from '../assets/logo.png';
 
+
 function RegisterPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -29,23 +32,22 @@ function RegisterPage() {
     try {
       const response = await axios.post('/auth/register', formData);
       
-      // Salvează token-ul în localStorage
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify({
+      // Salvează token-ul în sessionStorage
+      sessionStorage.setItem('token', response.data.token);
+      sessionStorage.setItem('user', JSON.stringify({
         id: response.data.id,
         email: response.data.email,
         username: response.data.username,
         name: response.data.name
       }));
       
-      setSuccess(`Bun venit în echipă, ${response.data.name}! `);
+      setSuccess(`Bun venit în echipă, ${response.data.name}! Contul tău a fost creat cu succes.`);
       setFormData({ email: '', username: '', password: '', name: '' });
       
-      // Redirect către dashboard după 2 secunde
+      // Redirect către dashboard după 1.5 secunde
       setTimeout(() => {
-        console.log('Token salvat:', response.data.token);
-        // TODO: Redirect către dashboard
-      }, 2000);
+        navigate('/dashboard');
+      }, 1500);
       
     } catch (err) {
       setError(err.response?.data?.error || 'Înregistrarea a eșuat. Te rugăm să încerci din nou.');
@@ -166,13 +168,12 @@ function RegisterPage() {
         <div className="mt-6 text-center border-t pt-4">
           <p className="text-gray-600">
             Ai deja un cont TeamMate?{' '}
-            <a 
-              href="#" 
-              onClick={(e) => { e.preventDefault(); window.navigateTo('login'); }}
-              className="text-[#8B1538] hover:text-[#6B0F2E] font-semibold transition duration-200"
+           <Link 
+           to="/login"
+            className="text-[#8B1538] hover:text-[#6B0F2E] font-semibold transition duration-200"
             >
-              Autentifică-te aici ! →
-            </a>
+            Autentifică-te aici !
+            </Link>
           </p>
         </div>
       </div>

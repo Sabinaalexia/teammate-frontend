@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from '../axiosConfig';
 import logo from '../assets/logo.png';
 
 function LoginPage() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     emailOrUsername: '',
     password: ''
@@ -25,9 +27,8 @@ function LoginPage() {
     try {
       const response = await axios.post('/auth/login', formData);
       
-      // Salvează token-ul în localStorage
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify({
+      sessionStorage.setItem('token', response.data.token);
+      sessionStorage.setItem('user', JSON.stringify({
         id: response.data.id,
         email: response.data.email,
         username: response.data.username,
@@ -35,9 +36,9 @@ function LoginPage() {
       }));
       
       console.log('Login reușit! Token salvat:', response.data.token);
-      alert(`Bine ai revenit, ${response.data.name}! `);
       
-      // TODO: Redirect către dashboard
+      // Redirect către dashboard
+      navigate('/dashboard');
       
     } catch (err) {
       setError(err.response?.data?.error || 'Autentificare eșuată. Verifică datele introduse.');
@@ -50,7 +51,6 @@ function LoginPage() {
     <div className="min-h-screen bg-gradient-to-br from-[#8B1538] to-[#4A0E2A] flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
         
-        {/* LOGO + TITLU */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
             <img 
@@ -63,22 +63,20 @@ function LoginPage() {
             Bine ai revenit! 
           </h1>
           <p className="text-gray-600">
-            Continuă munca în echipă la proiectele tale!
+            Continuă munca în echipă la proiectele tale
           </p>
         </div>
 
-        {/* MESAJ EROARE */}
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">
             <p className="font-medium"> {error}</p>
           </div>
         )}
 
-        {/* FORMULAR */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-gray-700 font-medium mb-2">
-              Email sau Username
+              Email sau Nume Utilizator
             </label>
             <input
               type="text"
@@ -86,7 +84,7 @@ function LoginPage() {
               value={formData.emailOrUsername}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-[#8B1538] rounded-lg focus:ring-2 focus:ring-[#6B0F2E] focus:border-transparent transition duration-200"
+              className="w-full px-4 py-3 border-2 border-[#8B1538] rounded-lg focus:ring-2 focus:ring-[#6B0F2E] focus:border-[#6B0F2E] transition duration-200"
               
             />
           </div>
@@ -101,7 +99,7 @@ function LoginPage() {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border-2 border-[#8B1538] rounded-lg focus:ring-2 focus:ring-[#6B0F2E] focus:border-transparent transition duration-200"
+              className="w-full px-4 py-3 border-2 border-[#8B1538] rounded-lg focus:ring-2 focus:ring-[#6B0F2E] focus:border-[#6B0F2E] transition duration-200"
               
             />
           </div>
@@ -115,17 +113,15 @@ function LoginPage() {
           </button>
         </form>
 
-        {/* LINK CĂTRE REGISTER */}
         <div className="mt-6 text-center border-t pt-4">
           <p className="text-gray-600">
             Nou pe TeamMate?{' '}
-            <a 
-              href="#" 
-              onClick={(e) => { e.preventDefault(); window.navigateTo('register'); }}
-              className="text-[#8B1538] hover:text-[#6B0F2E] font-semibold transition duration-200"
+            <Link 
+            to="/register"
+            className="text-[#8B1538] hover:text-[#6B0F2E] font-semibold transition duration-200"
             >
-              Creează-ți cont ! →
-            </a>
+            Creează-ți cont aici !
+            </Link>
           </p>
         </div>
       </div>
