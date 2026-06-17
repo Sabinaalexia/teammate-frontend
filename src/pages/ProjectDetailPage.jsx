@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../axiosConfig';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const formatDate = (d) => {
   if (!d) return '-';
@@ -32,6 +33,238 @@ const STATUS_STYLE = {
   IN_PROGRESS: 'bg-blue-100 text-blue-700',
   DONE: 'bg-green-100 text-green-700',
 };
+
+// ── MUTAT EXTERN: Tooltip personalizat pentru Bar Chart care arată data finalizării la hover pe bară ──
+const CustomBarTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 border-2 border-[#E8C5D0] rounded-xl shadow-lg z-50">
+        <p className="text-xs font-bold text-gray-800">{data.username}</p>
+        <p className="text-xs font-semibold text-[#8B1538]">Progres: {data.procentPerformanta}%</p>
+        <p className="text-[11px] text-gray-500 mt-0.5 font-medium">Data nivel: {data.dataFinalizare}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+// 1. TOOLTIP-UL DINAMIC CU NUME COMPLET UNIC (MUTAT EXTERN DIRECT)
+const AuditCustomBarTooltip = ({ active, payload, coordinate }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    
+    let activePercent = data.procentPerformanta;
+    if (coordinate && coordinate.x) {
+      const graphWidth = 300; 
+      const estimatedPercent = Math.min(100, Math.max(0, Math.round((coordinate.x / graphWidth) * 100)));
+      activePercent = estimatedPercent > data.procentPerformanta ? data.procentPerformanta : estimatedPercent;
+    }
+
+    let displayDate = data.dataFinalizare;
+    if (data.historyDates && data.historyDates.length > 0 && data.allocatedTasks > 0) {
+      const indexForPercent = Math.min(
+        data.historyDates.length - 1,
+        Math.max(0, Math.floor((activePercent / 100) * data.allocatedTasks) - 1)
+      );
+      const targetDate = data.historyDates[indexForPercent];
+      if (targetDate) displayDate = targetDate.toLocaleDateString('ro-RO');
+    }
+
+    return (
+      <div className="bg-black/85 backdrop-blur-sm px-3 py-2 rounded-xl text-white shadow-xl border border-gray-700 z-50">
+        <p className="text-xs font-bold">{data.username}</p>
+        <p className="text-xs text-gray-300">Progres: {activePercent}%</p>
+        <p className="text-[11px] text-gray-400 mt-0.5">Dată nivel: {displayDate}</p>
+      </div>
+    );
+  }
+  return null;
+};
+
+// 2. COMPONENTA DE GRAFICE CURATĂ (FĂRĂ DECLARĂRI DUPLICATE ÎN INTERIOR)
+function DashboardAuditMembri({ phases }) {
+  const [selectedSprint, setSelectedSprint] = useState('total');
+
+  const calculateStats = () => {
+    const statsMap = {};
+    const targetPhases = selectedSprint === 'total' 
+      ? phases 
+      : phases.filter(p => p.id.toString() === selectedSprint);
+
+    targetPhases.forEach(phase => {
+      (phase.tasks || []).forEach(task => {
+        // Numărăm task-urile pentru toți membrii din array separat (atribuire multiplă)
+        const names = task.assignedToNames && task.assignedToNames.length > 0 
+          ? task.assignedToNames 
+          : ['Neatribuit'];
+
+        names.forEach(name => {
+          if (!statsMap[name]) {
+            statsMap[name] = { 
+              username: name, 
+              allocatedTasks: 0, 
+              doneTasks: 0, 
+              history: [] 
+            };
+          }
+
+          statsMap[name].allocatedTasks += 1;
+          
+          if (task.status === 'DONE') {
+            statsMap[name].doneTasks += 1;
+            const taskDate = task.createdAt ? new Date(task.createdAt) : new Date();
+            statsMap[name].history.push(taskDate);
+          }
+        });
+      });
+    });
+
+    return Object.values(statsMap).map(u => {
+      const percentage = u.allocatedTasks > 0 ? Math.round((u.doneTasks / u.allocatedTasks) * 100) : 0;
+      const sortedHistory = u.history.sort((a, b) => a - b);
+      
+      return {
+        username: u.username,
+        allocatedTasks: u.allocatedTasks,
+        doneTasks: u.doneTasks,
+        procentPerformanta: percentage,
+        historyDates: sortedHistory,
+        dataFinalizare: sortedHistory.length > 0 ? sortedHistory[sortedHistory.length - 1].toLocaleDateString('ro-RO') : 'Niciun task finalizat'
+      };
+    });
+  };
+
+  const stats = calculateStats();
+  const COLORS = ['#8B1538', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'];
+  const allocatedData = stats.map(u => ({ name: u.username, value: u.allocatedTasks }));
+
+  const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 1.3;
+    const RADIAN = Math.PI / 180;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    if (percent === 0) return null;
+    return (
+      <text x={x} y={cy + radius * Math.sin(-midAngle * RADIAN)} fill="#374151" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" className="text-xs font-bold">
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  return (
+    <div className="w-full bg-white rounded-3xl border-2 border-[#E8C5D0] p-8 space-y-8 shadow-sm mx-auto">
+      
+      {/* Header: Titlu vișiniu mediu curat */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-b border-gray-100 pb-4 gap-3">
+        <h3 className="font-bold text-lg text-[#8B1538] uppercase tracking-wider">
+          SISTEM DE EVALUARE COMPARATIVĂ
+        </h3>
+        <div>
+          <select
+            id="sprint-select"
+            value={selectedSprint}
+            onChange={(e) => setSelectedSprint(e.target.value)}
+            className="text-xs font-semibold px-3 py-1.5 bg-[#FFF8F0] border-2 border-[#E8C5D0] text-[#8B1538] rounded-xl focus:outline-none focus:border-[#8B1538] cursor-pointer"
+          >
+            <option value="total">Per total proiect</option>
+            {phases.map((phase, idx) => (
+              <option key={phase.id} value={phase.id}>
+                Sprint {idx + 1}: {phase.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {stats.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-400 italic text-sm">Nu există task-uri înregistrate.</p>
+        </div>
+      ) : (
+        <div className="space-y-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-start w-full">
+            
+            {/* DIAGRAMA 1: PIE CHART MARIT */}
+            <div className="w-full flex flex-col items-center">
+              <div className="text-center mb-4">
+                <h4 className="font-bold text-sm text-gray-800 uppercase">Gestiunea resurselor umane</h4>
+                <p className="text-xs text-gray-500 font-medium">Volumul de sarcina alocate per membru</p>
+              </div>
+              <div style={{ width: '100%', height: 280 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie 
+                      data={allocatedData} 
+                      cx="50%" cy="50%" 
+                      innerRadius={65} outerRadius={95} 
+                      paddingAngle={4} 
+                      dataKey="value"
+                      label={renderCustomizedLabel}
+                      labelLine={false}
+                    >
+                      {allocatedData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                 <Tooltip
+  content={({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const entry = payload[0];
+      return (
+        <div style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: '12px', padding: '8px 12px' }}>
+          <p style={{ color: '#9ca3af', fontSize: '11px', margin: 0 }}>{entry.name}</p>
+          <p style={{ color: '#fff', fontSize: '12px', margin: '2px 0 0 0' }}>Alocat: {entry.value} task-uri</p>
+        </div>
+      );
+    }
+    return null;
+  }}
+/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* DIAGRAMA 2: BAR CHART CU AXA Y REPARATA ȘI BARE GROASE */}
+            <div className="w-full flex flex-col items-center">
+              <div className="text-center mb-4">
+                <h4 className="font-bold text-sm text-gray-800 uppercase">Rata de livrare realizată</h4>
+                <p className="text-xs text-gray-500 font-medium">Progresul real de performanță per membru</p>
+              </div>
+              <div style={{ width: '100%', height: 280 }}>
+                <ResponsiveContainer>
+                  <BarChart data={stats} layout="vertical" margin={{ top: 5, right: 20, left: 5, bottom: 5 }}>
+  <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" />
+                    <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 30, 40, 50, 60, 70, 80, 90, 100]} tick={{ fontSize: 10 }} unit="%" />
+                    <YAxis dataKey="username" type="category" tick={{ fontSize: 11, fontWeight: 'bold', fill: '#374151' }} width={70} />
+                    <Tooltip content={<AuditCustomBarTooltip />} />
+                    <Bar dataKey="procentPerformanta" radius={[0, 6, 6, 0]} barSize={24}> 
+                      {stats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+          </div>
+
+          {/* LEGENDA ORIZONTALĂ JOS PE MIJLOC */}
+          <div className="flex flex-wrap items-center justify-center gap-6 pt-4 border-t border-gray-100 w-full">
+            {stats.map((s, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                <span className="text-xs font-bold text-gray-700">{s.username}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function ModalAddTask({ phaseId, members, onClose, onSave }) {
   const [title, setTitle] = useState('');
@@ -289,7 +522,7 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
           onClose={() => setShowEdit(false)}
           onSave={(updated) => { onTaskUpdated(task.id, updated); setShowEdit(false); onRefresh(); }} />
       )}
-      <div className={`flex gap-3 relative ${task.status === 'DONE' ? 'opacity-50' : ''}`}>
+      <div className={`flex gap-3 relative ${task.status === 'DONE' && !expanded ? 'opacity-50' : ''}`}>
         <div className="flex flex-col items-center flex-shrink-0" style={{ marginLeft: '-20px' }}>
           <div className={`w-2.5 h-2.5 rounded-full border-2 mt-3 flex-shrink-0 z-10 ${
             task.status === 'DONE' ? 'bg-green-500 border-green-500' :
@@ -297,7 +530,13 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
             'bg-white border-gray-400'
           }`} />
         </div>
-        <div className={`flex-1 rounded-xl border-2 mb-2 transition-all ${isOwn ? 'border-[#8B1538] bg-white shadow-sm' : 'border-gray-200 bg-gray-50'}`}>
+       <div className={`flex-1 rounded-xl border-2 mb-2 transition-all cursor-pointer ${
+  expanded 
+    ? 'border-[#8B1538] bg-white shadow-md ring-2 ring-[#8B1538] ring-opacity-20' 
+    : isOwn 
+      ? 'border-[#8B1538] bg-white shadow-sm' 
+      : 'border-gray-200 bg-gray-50 hover:border-[#8B1538] hover:bg-white hover:shadow-sm'
+}`}>
           <div className="flex items-start justify-between p-3">
             <div className="flex-1 cursor-pointer" onClick={() => setExpanded(!expanded)}>
               <p className={`text-sm font-semibold ${task.status === 'DONE' ? 'text-gray-400' : isOwn ? 'text-gray-900' : 'text-gray-500'}`}>
@@ -570,10 +809,10 @@ function ModalFelicitari({ onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center">
         <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-  </svg>
-</div>
+          <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+          </svg>
+        </div>
         <h2 className="text-2xl font-bold text-[#8B1538] mb-3">Felicitari!</h2>
         <p className="text-gray-600 mb-6">Ati finalizat cu succes toate sprint-urile proiectului. Succes mai departe!</p>
         <button onClick={onClose} className="w-full py-3 bg-[#8B1538] text-white rounded-xl font-bold hover:bg-[#6B0F2E] transition">
@@ -733,7 +972,6 @@ function ProjectDetailPage() {
       }, 0))
     : 0;
 
-  // Proiect neînceput = startDate în viitor
   const projectNotStarted = project && project.startDate && zilePanaLa(project.startDate) > 0;
 
   if (loading) {
@@ -810,6 +1048,13 @@ function ProjectDetailPage() {
             </svg>
             Raport Proiect
           </button>
+          <button onClick={() => setActiveTab('audit')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition ${activeTab === 'audit' ? 'border-[#8B1538] text-[#8B1538]' : 'border-transparent text-gray-500 hover:text-[#8B1538]'}`}>
+           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+</svg>
+            Monitorizare
+          </button>
         </div>
       </div>
 
@@ -817,7 +1062,6 @@ function ProjectDetailPage() {
         {activeTab === 'sprint' && (
           <div>
             {projectNotStarted ? (
-              /* ── Proiect neînceput ── */
               <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-12 text-center">
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -836,7 +1080,6 @@ function ProjectDetailPage() {
                 <p className="text-gray-400 text-xs mt-2">Sprinturile se vor activa automat la data de start.</p>
               </div>
             ) : (
-              /* ── Proiect activ/finalizat ── */
               <>
                 {phases.length === 0 ? (
                   <div className="text-center py-16 bg-white rounded-2xl">
@@ -845,10 +1088,10 @@ function ProjectDetailPage() {
                 ) : allConfirmed ? (
                   <div className="text-center py-16 bg-white rounded-2xl border-2 border-green-200">
                     <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-  </svg>
-</div>
+                      <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                      </svg>
+                    </div>
                     <p className="text-xl font-bold text-green-700 mb-2">Proiect finalizat!</p>
                     <p className="text-gray-500">Toate sprint-urile au fost completate cu succes.</p>
                   </div>
@@ -877,23 +1120,29 @@ function ProjectDetailPage() {
 
         {activeTab === 'raport' && (
           <div className="space-y-5">
-            {/* Progres general */}
             <div className={`bg-white rounded-2xl border-2 border-[#E8C5D0] p-5 ${projectNotStarted ? 'opacity-50 pointer-events-none' : ''}`}>
               <h3 className="font-bold text-[#8B1538] mb-3">Progres general proiect</h3>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-gray-500">{confirmedPhases} din {totalPhases} sprinturi finalizate</span>
-              </div>
+              <div className="flex items-center gap-2 mb-1">
+  <svg className="w-4 h-4 text-[#8B1538] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+  <span className="text-xs text-gray-500">{confirmedPhases} din {totalPhases} sprinturi finalizate</span>
+</div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-500">{doneTasks} din {totalTasks} taskuri finalizate</span>
-                <span className={`text-sm font-bold ${getProgressTextColor(generalProgress)}`}>{generalProgress}%</span>
-              </div>
+  <div className="flex items-center gap-2">
+    <svg className="w-4 h-4 text-[#8B1538] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+    <span className="text-xs text-gray-500">{doneTasks} din {totalTasks} taskuri finalizate</span>
+  </div>
+  <span className={`text-sm font-bold ${getProgressTextColor(generalProgress)}`}>{generalProgress}%</span>
+</div>
               <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all duration-700 ${getProgressColor(generalProgress)}`}
                   style={{ width: `${generalProgress}%` }} />
               </div>
             </div>
 
-            {/* Timeline sprint-uri */}
             <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-5">
               <h3 className="font-bold text-[#8B1538] mb-4">Timeline sprint-uri</h3>
               {projectNotStarted && (
@@ -953,7 +1202,6 @@ function ProjectDetailPage() {
               </div>
             </div>
 
-            {/* Detalii proiect */}
             <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-5">
               <h3 className="font-bold text-[#8B1538] mb-3">Detalii proiect</h3>
               <div className="space-y-2 text-sm">
@@ -978,6 +1226,10 @@ function ProjectDetailPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'audit' && (
+          <DashboardAuditMembri phases={phases} />
         )}
       </div>
     </div>

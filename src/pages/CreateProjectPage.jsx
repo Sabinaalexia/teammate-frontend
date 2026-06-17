@@ -535,11 +535,17 @@ function CreateProjectPage() {
   }
 
   const toggleEtapa = (id) => {
-    setEtapeSelectate((prev) => ({
+  setEtapeSelectate((prev) => {
+    const eraSelectat = prev[id].selectat;
+    return {
       ...prev,
-      [id]: { ...prev[id], selectat: !prev[id].selectat },
-    }));
-  };
+      [id]: {
+        selectat: !eraSelectat,
+        dificultate: eraSelectat ? 0 : prev[id].dificultate,
+      },
+    };
+  });
+};
 
   const setDificultate = (id, val) => {
     setEtapeSelectate((prev) => ({
