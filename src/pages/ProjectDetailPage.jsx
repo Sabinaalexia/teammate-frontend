@@ -3,6 +3,32 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../axiosConfig';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+const renderTextWithLinks = (text) => {
+  if (!text) return '';
+  // Regex care identifică link-urile ce încep cu http sau https
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, index) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 hover:underline break-all font-medium inline-flex items-center gap-0.5"
+        >
+          {part}
+          <span className="text-[10px] no-underline">↗</span>
+        </a>
+      );
+    }
+    return part;
+  });
+};
+
+
 const formatDate = (d) => {
   if (!d) return '-';
   return new Date(d).toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -586,7 +612,9 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
             <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-2">
               {task.description && (
                 <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                  <span className="font-medium">Descriere:</span> {task.description}
+                  <>
+  <span className="font-medium">Descriere:</span> {renderTextWithLinks(task.description)}
+</>
                 </p>
               )}
               <div>
@@ -596,7 +624,9 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                     {comments.map((c) => (
                       <div key={c.id} className="bg-[#FFF8F0] border border-[#E8C5D0] rounded-lg px-2.5 py-1.5">
                         <p className="text-xs font-medium text-[#8B1538]">{c.userName}</p>
-                        <p className="text-xs text-gray-700">{c.message}</p>
+                        <p className="text-xs text-gray-700 break-words whitespace-pre-wrap">
+  {renderTextWithLinks(c.message)}
+</p>
                         <p className="text-xs text-gray-400 mt-0.5">
                           {new Date(c.createdAt).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -861,7 +891,9 @@ function RaportTaskRow({ task, taskNumber }) {
         <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-2">
           {task.description ? (
             <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-              <span className="font-medium">Descriere:</span> {task.description}
+              <>
+  <span className="font-medium">Descriere:</span> {renderTextWithLinks(task.description)}
+</>
             </p>
           ) : (
             <p className="text-xs text-gray-400 italic">Fara descriere.</p>

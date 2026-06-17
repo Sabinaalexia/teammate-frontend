@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../axiosConfig';
 
+
+
 // ─── ICONIȚE SVG ─────────────────────────────────────────────────────────────
 const Icons = {
   Brainstorming: () => (
