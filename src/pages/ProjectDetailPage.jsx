@@ -268,10 +268,6 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
   const handleUploadPdf = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
-
-  
-  
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -285,11 +281,6 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
   };
 
   const assignedNames = task.assignedToNames?.length > 0 ? task.assignedToNames.join(', ') : 'Neatribuit';
-
-  const getDownloadUrl = (attId) => {
-  const base = (axios.defaults.baseURL || '').replace(/\/api$/, '');
-  return `${base}/api/attachments/${attId}/download`;
-};
 
   return (
     <>
@@ -390,8 +381,6 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                   </div>
                 )}
               </div>
-
-                                          {/* ── Atașamente PDF ── */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-medium text-gray-500">Fișiere PDF:</p>
@@ -453,9 +442,6 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                   <p className="text-xs text-gray-400 italic">Niciun fișier atașat.</p>
                 )}
               </div>
-              {/* ────────────────── */}
-
-
             </div>
           )}
         </div>
@@ -583,7 +569,11 @@ function ModalFelicitari({ onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-sm text-center">
-        <div className="text-6xl mb-4">🏆</div>
+        <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+  </svg>
+</div>
         <h2 className="text-2xl font-bold text-[#8B1538] mb-3">Felicitari!</h2>
         <p className="text-gray-600 mb-6">Ati finalizat cu succes toate sprint-urile proiectului. Succes mai departe!</p>
         <button onClick={onClose} className="w-full py-3 bg-[#8B1538] text-white rounded-xl font-bold hover:bg-[#6B0F2E] transition">
@@ -730,7 +720,21 @@ function ProjectDetailPage() {
   const allConfirmed = phases.length > 0 && phases.every(p => p.confirmedByScrum);
   const totalTasks = phases.reduce((acc, p) => acc + (p.tasks?.length || 0), 0);
   const doneTasks = phases.reduce((acc, p) => acc + (p.tasks?.filter(t => t.status === 'DONE').length || 0), 0);
-  const generalProgress = totalTasks > 0 ? Math.round(doneTasks * 100 / totalTasks) : 0;
+  const totalPhases = phases.length;
+  const confirmedPhases = phases.filter(p => p.confirmedByScrum).length;
+  const generalProgress = totalPhases > 0
+    ? Math.round(phases.reduce((acc, phase) => {
+        const phaseTasks = phase.tasks || [];
+        const phaseDone = phaseTasks.filter(t => t.status === 'DONE').length;
+        const phaseContrib = phaseTasks.length > 0
+          ? (phaseDone / phaseTasks.length) * (100 / totalPhases)
+          : 0;
+        return acc + phaseContrib;
+      }, 0))
+    : 0;
+
+  // Proiect neînceput = startDate în viitor
+  const projectNotStarted = project && project.startDate && zilePanaLa(project.startDate) > 0;
 
   if (loading) {
     return (
@@ -776,11 +780,14 @@ function ProjectDetailPage() {
                 </span>
               )}
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                project.status === 'NOT_STARTED' ? 'bg-gray-100 text-gray-600' :
                 allConfirmed || project.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
                 project.status === 'ARCHIVED' ? 'bg-gray-100 text-gray-600' :
                 'bg-green-100 text-green-700'
               }`}>
-                {allConfirmed || project.status === 'COMPLETED' ? 'Finalizat' : project.status === 'ARCHIVED' ? 'Arhivat' : 'Activ'}
+                {project.status === 'NOT_STARTED' ? 'Neînceput' :
+                 allConfirmed || project.status === 'COMPLETED' ? 'Finalizat' :
+                 project.status === 'ARCHIVED' ? 'Arhivat' : 'Activ'}
               </span>
             </div>
           </div>
@@ -809,76 +816,91 @@ function ProjectDetailPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'sprint' && (
           <div>
-            {project.startDate && zilePanaLa(project.startDate) > 0 && (
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-4 flex items-center gap-3">
-                <svg className="w-5 h-5 text-yellow-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {projectNotStarted ? (
+              /* ── Proiect neînceput ── */
+              <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-12 text-center">
+                <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <p className="text-sm text-yellow-700 font-medium">
-                  Mai sunt <strong>{zilePanaLa(project.startDate)} {zilePanaLa(project.startDate) === 1 ? 'zi' : 'zile'}</strong> pana incepe proiectul · Start: {formatDate(project.startDate)}
+                <h2 className="text-2xl font-bold text-[#8B1538] mb-2">Proiectul nu a început încă</h2>
+                <p className="text-gray-500 text-sm mb-1">
+                  Data de start: <strong>{formatDate(project.startDate)}</strong>
                 </p>
-              </div>
-            )}
-            {phases.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-2xl">
-                <p className="text-gray-500">Nicio etapa selectata la crearea proiectului.</p>
-              </div>
-            ) : allConfirmed ? (
-              <div className="text-center py-16 bg-white rounded-2xl border-2 border-green-200">
-                <div className="text-5xl mb-4">🏆</div>
-                <p className="text-xl font-bold text-green-700 mb-2">Proiect finalizat!</p>
-                <p className="text-gray-500">Toate sprint-urile au fost completate cu succes.</p>
-              </div>
-            ) : !activePhase ? (
-              <div className="text-center py-16 bg-white rounded-2xl">
-                <p className="text-gray-500">Se incarca sprint-ul activ...</p>
+                <p className={`text-2xl font-bold mt-4 ${
+                  zilePanaLa(project.startDate) <= 3 ? 'text-red-500' :
+                  zilePanaLa(project.startDate) <= 7 ? 'text-orange-500' :
+                  'text-[#8B1538]'
+                }`}>
+                  Mai {zilePanaLa(project.startDate) === 1 ? 'este' : 'sunt'} {zilePanaLa(project.startDate)} {zilePanaLa(project.startDate) === 1 ? 'zi' : 'zile'}
+                </p>
+                <p className="text-gray-400 text-xs mt-2">Sprinturile se vor activa automat la data de start.</p>
               </div>
             ) : (
-              <SprintCard
-                phase={activePhase}
-                sprintIndex={activePhaseIndex + 1}
-                isActive={true}
-                isCompleted={false}
-                isFuture={false}
-                currentUser={currentUser}
-                isOwner={isOwner}
-                members={members}
-                onRefresh={fetchAll}
-                onTaskUpdated={handleTaskUpdated}
-              />
+              /* ── Proiect activ/finalizat ── */
+              <>
+                {phases.length === 0 ? (
+                  <div className="text-center py-16 bg-white rounded-2xl">
+                    <p className="text-gray-500">Nicio etapa selectata la crearea proiectului.</p>
+                  </div>
+                ) : allConfirmed ? (
+                  <div className="text-center py-16 bg-white rounded-2xl border-2 border-green-200">
+                    <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+  <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+  </svg>
+</div>
+                    <p className="text-xl font-bold text-green-700 mb-2">Proiect finalizat!</p>
+                    <p className="text-gray-500">Toate sprint-urile au fost completate cu succes.</p>
+                  </div>
+                ) : !activePhase ? (
+                  <div className="text-center py-16 bg-white rounded-2xl">
+                    <p className="text-gray-500">Se incarca sprint-ul activ...</p>
+                  </div>
+                ) : (
+                  <SprintCard
+                    phase={activePhase}
+                    sprintIndex={activePhaseIndex + 1}
+                    isActive={true}
+                    isCompleted={false}
+                    isFuture={false}
+                    currentUser={currentUser}
+                    isOwner={isOwner}
+                    members={members}
+                    onRefresh={fetchAll}
+                    onTaskUpdated={handleTaskUpdated}
+                  />
+                )}
+              </>
             )}
           </div>
         )}
 
         {activeTab === 'raport' && (
           <div className="space-y-5">
-            <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-5">
+            {/* Progres general */}
+            <div className={`bg-white rounded-2xl border-2 border-[#E8C5D0] p-5 ${projectNotStarted ? 'opacity-50 pointer-events-none' : ''}`}>
               <h3 className="font-bold text-[#8B1538] mb-3">Progres general proiect</h3>
-              <div className="flex justify-between mb-1">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500">{confirmedPhases} din {totalPhases} sprinturi finalizate</span>
+              </div>
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-500">{doneTasks} din {totalTasks} taskuri finalizate</span>
                 <span className={`text-sm font-bold ${getProgressTextColor(generalProgress)}`}>{generalProgress}%</span>
               </div>
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-4">
-                <div className={`h-full rounded-full transition-all duration-700 ${getProgressColor(generalProgress)}`} style={{ width: `${generalProgress}%` }} />
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center bg-[#FFF8F0] rounded-xl p-3">
-                  <p className="text-2xl font-bold text-[#8B1538]">{phases.length}</p>
-                  <p className="text-xs text-gray-500">Sprint-uri</p>
-                </div>
-                <div className="text-center bg-[#FFF8F0] rounded-xl p-3">
-                  <p className="text-2xl font-bold text-[#8B1538]">{totalTasks}</p>
-                  <p className="text-xs text-gray-500">Taskuri totale</p>
-                </div>
-                <div className="text-center bg-green-50 rounded-xl p-3">
-                  <p className="text-2xl font-bold text-green-600">{doneTasks}</p>
-                  <p className="text-xs text-gray-500">Finalizate</p>
-                </div>
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-700 ${getProgressColor(generalProgress)}`}
+                  style={{ width: `${generalProgress}%` }} />
               </div>
             </div>
 
+            {/* Timeline sprint-uri */}
             <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-5">
               <h3 className="font-bold text-[#8B1538] mb-4">Timeline sprint-uri</h3>
+              {projectNotStarted && (
+                <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4 text-center">
+                  <p className="text-xs text-gray-500">Planificarea proiectului — sprinturile devin active pe <strong>{formatDate(project.startDate)}</strong></p>
+                </div>
+              )}
               <div className="relative pl-6">
                 <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-[#E8C5D0]" />
                 {phases.map((phase, idx) => {
@@ -886,38 +908,38 @@ function ProjectDetailPage() {
                   const done = tasks.filter(t => t.status === 'DONE').length;
                   const prog = tasks.length > 0 ? Math.round(done * 100 / tasks.length) : 0;
                   const isConf = phase.confirmedByScrum;
-                  const isAct = idx === activePhaseIndex;
+                  const isAct = !projectNotStarted && idx === activePhaseIndex;
                   const isFut = !isConf && !isAct;
                   return (
                     <div key={phase.id} className="relative mb-5 last:mb-0">
                       <div className={`absolute -left-4 top-1 w-4 h-4 rounded-full border-2 z-10 ${
+                        projectNotStarted ? 'bg-white border-gray-300' :
                         isConf || isAct ? 'bg-[#8B1538] border-[#8B1538]' : 'bg-white border-gray-300'
                       }`} />
                       <div className={`ml-2 rounded-xl border-2 p-3 ${
+                        projectNotStarted ? 'border-gray-200 bg-gray-50 opacity-60' :
                         isConf || isAct ? 'border-[#8B1538] bg-white' : 'border-gray-200 bg-gray-50 opacity-60'
                       }`}>
                         <div className="flex items-center justify-between mb-1">
                           <div>
-                            <p className={`font-bold text-sm ${isConf || isAct ? 'text-[#8B1538]' : 'text-gray-400'}`}>
+                            <p className={`font-bold text-sm ${
+                              projectNotStarted ? 'text-gray-400' :
+                              isConf || isAct ? 'text-[#8B1538]' : 'text-gray-400'
+                            }`}>
                               Sprint {idx + 1}: {phase.name}
                               {isConf && <span className="ml-2 text-xs font-normal text-green-600">✓ Finalizat</span>}
                             </p>
-                            {(isConf || isAct) && phase.startDate && phase.endDate && (
-                              <p className={`text-xs mt-0.5 ${isAct ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                            {phase.startDate && phase.endDate && (
+                              <p className="text-xs mt-0.5 text-gray-900 font-medium">
                                 {formatDate(phase.startDate)} → {formatDate(phase.endDate)}
                               </p>
                             )}
-                            {isFut && (
-                              phase.startDate && phase.endDate
-                                ? <p className="text-xs text-gray-400 italic">Urmează · {formatDate(phase.startDate)} → {formatDate(phase.endDate)}</p>
-                                : <p className="text-xs text-gray-400 italic">Urmează</p>
-                            )}
                           </div>
-                          {!isFut && tasks.length > 0 && (
+                          {!isFut && !projectNotStarted && tasks.length > 0 && (
                             <span className={`text-xs font-bold ${getProgressTextColor(prog)}`}>{prog}%</span>
                           )}
                         </div>
-                        {!isFut && tasks.length > 0 && (
+                        {!isFut && !projectNotStarted && tasks.length > 0 && (
                           <div className="pl-3 border-l-2 border-[#E8C5D0] space-y-1 mt-2">
                             {tasks.map((t, tidx) => (
                               <RaportTaskRow key={t.id} task={t} taskNumber={tidx + 1} />
@@ -931,13 +953,28 @@ function ProjectDetailPage() {
               </div>
             </div>
 
+            {/* Detalii proiect */}
             <div className="bg-white rounded-2xl border-2 border-[#E8C5D0] p-5">
               <h3 className="font-bold text-[#8B1538] mb-3">Detalii proiect</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between"><span className="text-gray-500">Deadline:</span><span className="font-medium">{formatDate(project.deadline)}</span></div>
+                {project.startDate && <div className="flex justify-between"><span className="text-gray-500">Data start:</span><span className="font-medium">{formatDate(project.startDate)}</span></div>}
                 <div className="flex justify-between"><span className="text-gray-500">Scrum Master:</span><span className="font-medium text-[#8B1538]">{project.creatorName}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Membri echipa:</span><span className="font-medium">{members.length} persoane</span></div>
+                <div className="flex justify-between items-start">
+                  <span className="text-gray-500">Membri echipa:</span>
+                  <div className="text-right">
+                    <span className="font-medium">{members.length} persoane</span>
+                    <div className="flex flex-wrap gap-1 justify-end mt-1">
+                      {members.map((m, i) => (
+                        <span key={i} className="text-xs bg-[#FFF8F0] border border-[#E8C5D0] text-[#8B1538] px-2 py-0.5 rounded-full">
+                          {m.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
                 <div className="flex justify-between"><span className="text-gray-500">Sprint-uri:</span><span className="font-medium">{phases.length}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Taskuri totale:</span><span className="font-medium">{totalTasks}</span></div>
               </div>
             </div>
           </div>

@@ -138,15 +138,58 @@ function DashboardPage() {
   // ────────────────────────────────
 
   const getNotifIcon = (type) => {
-    switch (type) {
-      case 'TASK_ASSIGNED': return '📋';
-      case 'SPRINT_DONE_SCRUM': return '✅';
-      case 'SPRINT_DONE_MEMBER': return '🎉';
-      case 'TASK_MODIFIED': return '✏️';
-      case 'SPRINT_CONFIRMED': return '🏆';
-      default: return '🔔';
-    }
+  const icons = {
+    TASK_ASSIGNED: (
+      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      </div>
+    ),
+    SPRINT_DONE_SCRUM: (
+      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    ),
+    SPRINT_DONE_MEMBER: (
+      <div className="w-8 h-8 rounded-full bg-[#FFF8F0] flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-[#8B1538]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </div>
+    ),
+    TASK_MODIFIED: (
+      <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+        </svg>
+      </div>
+    ),
+   SPRINT_CONFIRMED: (
+  <div className="w-8 h-8 rounded-full bg-[#8B1538] flex items-center justify-center flex-shrink-0">
+    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+    </svg>
+  </div>
+),
+    SPRINT_DEADLINE: (
+      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </div>
+    ),
   };
+  return icons[type] || (
+    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    </div>
+  );
+};
 
   const handleLogout = () => {
     sessionStorage.removeItem('token');
@@ -182,6 +225,7 @@ function DashboardPage() {
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'COMPLETED': return 'bg-blue-100 text-blue-800';
       case 'ARCHIVED': return 'bg-gray-100 text-gray-800';
+      case 'NOT_STARTED': return 'bg-gray-100 text-gray-600';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -191,6 +235,7 @@ function DashboardPage() {
       case 'ACTIVE': return 'Activ';
       case 'COMPLETED': return 'Finalizat';
       case 'ARCHIVED': return 'Arhivat';
+      case 'NOT_STARTED': return 'Neînceput';
       default: return status;
     }
   };
@@ -205,6 +250,7 @@ function DashboardPage() {
       case 'ACTIVE': return s ? 'activ' : 'active';
       case 'COMPLETED': return s ? 'finalizat' : 'finalizate';
       case 'ARCHIVED': return s ? 'arhivat' : 'arhivate';
+      case 'NOT_STARTED': return s ? 'neînceput' : 'neîncepute';
       default: return 'în total';
     }
   };
@@ -306,7 +352,17 @@ function DashboardPage() {
                         {notifications.map((notif) => (
                           <div key={notif.id} className="p-4 hover:bg-[#FFF8F0] transition">
                             <div className="flex items-start gap-3">
-                              <span className="text-lg flex-shrink-0">{getNotifIcon(notif.type)}</span>
+  {notif.type === 'SPRINT_CONFIRMED' && notif.message.includes('finalizat')
+    ? (
+      <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15c-3.314 0-6-2.686-6-6V4h12v5c0 3.314-2.686 6-6 6zm0 0v4m-3 1h6M6 4H4a2 2 0 00-2 2v1c0 2.21 1.343 4 3 4m11-7h2a2 2 0 012 2v1c0 2.21-1.343 4-3 4" />
+        </svg>
+      </div>
+    )
+    : getNotifIcon(notif.type)
+  }
+
                               <div className="flex-1">
                                 <p className="text-sm text-gray-700" dangerouslySetInnerHTML={{ __html: notif.message.replace(/(".*?")/g, '<strong>$1</strong>') }} />
                                 <p className="text-xs text-gray-400 mt-1">
@@ -336,6 +392,18 @@ function DashboardPage() {
                                     Vezi task-ul
                                   </button>
                                 )}
+                                    {notif.type === 'SPRINT_DEADLINE' && (
+  <button
+    onClick={() => {
+      handleMarkAsRead(notif.id);
+      navigate(`/projects/${notif.projectId}`);
+      setShowNotificationsDropdown(false);
+    }}
+    className="mt-2 w-full bg-[#8B1538] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#6B0F2E] transition">
+    Vezi taskurile
+  </button>
+)}
+
                                 {notif.type === 'SPRINT_DONE_MEMBER' ? (
                                   <button onClick={() => { handleMarkAsRead(notif.id); navigate(`/projects/${notif.projectId}`); setShowNotificationsDropdown(false); }}
                                     className="mt-2 w-full bg-[#8B1538] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#6B0F2E] transition">
@@ -458,6 +526,7 @@ function DashboardPage() {
                   <option value="ACTIVE">Active</option>
                   <option value="COMPLETED">Finalizate</option>
                   <option value="ARCHIVED">Arhivate</option>
+                  <option value="NOT_STARTED">Neîncepute</option>
                 </select>
                 <svg className="w-4 h-4 text-[#8B1538] absolute right-2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
@@ -557,7 +626,13 @@ function DashboardPage() {
                             <span className="font-medium">Deadline:</span>
                             <span>{formatDate(project.deadline)}</span>
                           </div>
-                          {zileLabel && <span className={`text-xs ${zileLabel.color}`}>{zileLabel.text}</span>}
+                         {project.status === 'NOT_STARTED' && project.startDate ? (
+  <span className="text-xs text-gray-500 font-medium">
+    Începe în {zilePanaLaDeadline(project.startDate)} {zilePanaLaDeadline(project.startDate) === 1 ? 'zi' : 'zile'}
+  </span>
+) : (
+  zileLabel && <span className={`text-xs ${zileLabel.color}`}>{zileLabel.text}</span>
+)}
                         </div>
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
                           <svg className="w-4 h-4 text-[#8B1538] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
