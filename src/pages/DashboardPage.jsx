@@ -15,9 +15,7 @@ function DashboardPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [errorModal, setErrorModal] = useState('');
-  // ── NOU: modal arhivare ──
   const [archiveSuccessModal, setArchiveSuccessModal] = useState('');
-  // ────────────────────────
 
   const notificationsRef = useRef(null);
   const invitationsRef = useRef(null);
@@ -114,7 +112,6 @@ function DashboardPage() {
     } catch (e) { console.error(e); }
   };
 
-  // ── NOU: arhivare / dezarhivare ──
   const handleArchive = async (e, project) => {
     e.stopPropagation();
     try {
@@ -135,61 +132,60 @@ function DashboardPage() {
       setErrorModal(err.response?.data?.error || 'Eroare la dezarhivare.');
     }
   };
-  // ────────────────────────────────
 
   const getNotifIcon = (type) => {
-  const icons = {
-    TASK_ASSIGNED: (
-      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    const icons = {
+      TASK_ASSIGNED: (
+        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+          </svg>
+        </div>
+      ),
+      SPRINT_DONE_SCRUM: (
+        <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      ),
+      SPRINT_DONE_MEMBER: (
+        <div className="w-8 h-8 rounded-full bg-[#FFF8F0] flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-[#8B1538]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </div>
+      ),
+      TASK_MODIFIED: (
+        <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </div>
+      ),
+      SPRINT_CONFIRMED: (
+        <div className="w-8 h-8 rounded-full bg-[#8B1538] flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </div>
+      ),
+      SPRINT_DEADLINE: (
+        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+          <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      ),
+    };
+    return icons[type] || (
+      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
       </div>
-    ),
-    SPRINT_DONE_SCRUM: (
-      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-    ),
-    SPRINT_DONE_MEMBER: (
-      <div className="w-8 h-8 rounded-full bg-[#FFF8F0] flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-[#8B1538]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </div>
-    ),
-    TASK_MODIFIED: (
-      <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-      </div>
-    ),
-   SPRINT_CONFIRMED: (
-  <div className="w-8 h-8 rounded-full bg-[#8B1538] flex items-center justify-center flex-shrink-0">
-    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-    </svg>
-  </div>
-),
-    SPRINT_DEADLINE: (
-      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-    ),
+    );
   };
-  return icons[type] || (
-    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-      <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-    </div>
-  );
-};
 
   const handleLogout = () => {
     sessionStorage.removeItem('token');
@@ -214,7 +210,8 @@ function DashboardPage() {
   const getZileLabel = (zile) => {
     if (zile === null) return null;
     if (zile < 0) return { text: `Expirat acum ${Math.abs(zile)} zile`, color: 'text-red-500' };
-    if (zile === 0) return { text: 'Deadline azi!', color: 'text-red-500 font-bold' };
+    // ── MODIFICAT: "Se termină azi!" în loc de "Deadline azi!" ──
+    if (zile === 0) return { text: 'Se termină azi!', color: 'text-red-500 font-bold' };
     if (zile <= 7) return { text: `${zile} ${zile === 1 ? 'zi rămasă' : 'zile rămase'}`, color: 'text-orange-500 font-semibold' };
     if (zile <= 30) return { text: `${zile} zile rămase`, color: 'text-yellow-600' };
     return { text: `${zile} zile rămase`, color: 'text-green-600' };
@@ -240,8 +237,9 @@ function DashboardPage() {
     }
   };
 
+  // ── MODIFICAT: din "ALL" excludem ARCHIVED — apar doar la filtrul "Arhivate" ──
   const filteredProjects = projects.filter((p) =>
-    filterStatus === 'ALL' ? true : p.status === filterStatus
+    filterStatus === 'ALL' ? p.status !== 'ARCHIVED' : p.status === filterStatus
   );
 
   const getFilterLabel = (count) => {
@@ -352,17 +350,16 @@ function DashboardPage() {
                         {notifications.map((notif) => (
                           <div key={notif.id} className="p-4 hover:bg-[#FFF8F0] transition">
                             <div className="flex items-start gap-3">
-  {notif.type === 'SPRINT_CONFIRMED' && notif.message.includes('finalizat')
-    ? (
-      <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
-        <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15c-3.314 0-6-2.686-6-6V4h12v5c0 3.314-2.686 6-6 6zm0 0v4m-3 1h6M6 4H4a2 2 0 00-2 2v1c0 2.21 1.343 4 3 4m11-7h2a2 2 0 012 2v1c0 2.21-1.343 4-3 4" />
-        </svg>
-      </div>
-    )
-    : getNotifIcon(notif.type)
-  }
-
+                              {notif.type === 'SPRINT_CONFIRMED' && notif.message.includes('finalizat')
+                                ? (
+                                  <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15c-3.314 0-6-2.686-6-6V4h12v5c0 3.314-2.686 6-6 6zm0 0v4m-3 1h6M6 4H4a2 2 0 00-2 2v1c0 2.21 1.343 4 3 4m11-7h2a2 2 0 012 2v1c0 2.21-1.343 4-3 4" />
+                                    </svg>
+                                  </div>
+                                )
+                                : getNotifIcon(notif.type)
+                              }
                               <div className="flex-1">
                                 <p className="text-sm text-gray-700" dangerouslySetInnerHTML={{ __html: notif.message.replace(/(".*?")/g, '<strong>$1</strong>') }} />
                                 <p className="text-xs text-gray-400 mt-1">
@@ -392,18 +389,12 @@ function DashboardPage() {
                                     Vezi task-ul
                                   </button>
                                 )}
-                                    {notif.type === 'SPRINT_DEADLINE' && (
-  <button
-    onClick={() => {
-      handleMarkAsRead(notif.id);
-      navigate(`/projects/${notif.projectId}`);
-      setShowNotificationsDropdown(false);
-    }}
-    className="mt-2 w-full bg-[#8B1538] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#6B0F2E] transition">
-    Vezi taskurile
-  </button>
-)}
-
+                                {notif.type === 'SPRINT_DEADLINE' && (
+                                  <button onClick={() => { handleMarkAsRead(notif.id); navigate(`/projects/${notif.projectId}`); setShowNotificationsDropdown(false); }}
+                                    className="mt-2 w-full bg-[#8B1538] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#6B0F2E] transition">
+                                    Vezi taskurile
+                                  </button>
+                                )}
                                 {notif.type === 'SPRINT_DONE_MEMBER' ? (
                                   <button onClick={() => { handleMarkAsRead(notif.id); navigate(`/projects/${notif.projectId}`); setShowNotificationsDropdown(false); }}
                                     className="mt-2 w-full bg-[#8B1538] text-white text-xs font-bold py-1.5 rounded-lg hover:bg-[#6B0F2E] transition">
@@ -572,8 +563,8 @@ function DashboardPage() {
                             {getStatusLabel(project.status)}
                           </span>
 
-                          {/* ── NOU: icon arhivare doar pentru COMPLETED, dezarhivare pentru ARCHIVED ── */}
-                          {isOwner && project.status === 'COMPLETED' && (
+                          {/* Icon arhivare doar pe cardul COMPLETED */}
+                          {project.status === 'COMPLETED' && (
                             <button
                               onClick={(e) => handleArchive(e, project)}
                               title="Arhivează proiect"
@@ -584,18 +575,18 @@ function DashboardPage() {
                               </svg>
                             </button>
                           )}
+                          {/* Icon dezarhivare doar pe cardul ARCHIVED */}
                           {isOwner && project.status === 'ARCHIVED' && (
                             <button
                               onClick={(e) => handleUnarchive(e, project)}
                               title="Dezarhivează proiect"
                               className="p-1.5 rounded-lg transition text-gray-400 hover:text-blue-600 hover:bg-blue-50">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
-</svg>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+                              </svg>
                             </button>
                           )}
-                          {/* ───────────────────────────────────────────────────────────────────────── */}
 
                           <button onClick={(e) => { e.stopPropagation(); handleEditProject(project); }}
                             title={isOwner ? 'Editează proiect' : `Doar ${project.creatorName} poate modifica`}
@@ -626,13 +617,11 @@ function DashboardPage() {
                             <span className="font-medium">Deadline:</span>
                             <span>{formatDate(project.deadline)}</span>
                           </div>
-                         {project.status === 'NOT_STARTED' && project.startDate ? (
-  <span className="text-xs text-gray-500 font-medium">
-    Începe în {zilePanaLaDeadline(project.startDate)} {zilePanaLaDeadline(project.startDate) === 1 ? 'zi' : 'zile'}
-  </span>
-) : (
-  zileLabel && <span className={`text-xs ${zileLabel.color}`}>{zileLabel.text}</span>
-)}
+                          {project.status === 'NOT_STARTED' && project.startDate ? (
+                            <span className="text-xs text-gray-500 font-medium">Start: {formatDate(project.startDate)}</span>
+                          ) : (
+                            zileLabel && <span className={`text-xs ${zileLabel.color}`}>{zileLabel.text}</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
                           <svg className="w-4 h-4 text-[#8B1538] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -718,7 +707,7 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* ── NOU: MODAL ARHIVARE SUCCESS ── */}
+      {/* MODAL ARHIVARE SUCCESS */}
       {archiveSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center">
@@ -736,7 +725,6 @@ function DashboardPage() {
           </div>
         </div>
       )}
-      {/* ─────────────────────────────── */}
     </div>
   );
 }

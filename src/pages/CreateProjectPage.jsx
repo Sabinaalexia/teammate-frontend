@@ -81,7 +81,7 @@ const Icons = {
 const ETAPE_PRESTABILITE = [
   { id: 'brainstorming', nume: 'Brainstorming & Idei', Icon: Icons.Brainstorming },
   { id: 'documentare', nume: 'Documentare & Căutare surse', Icon: Icons.Documentare },
-  { id: 'analiza', nume: 'Analiză cerințe & Planning', Icon: Icons.Analiza },
+  { id: 'analiza', nume: 'Analiză cerințe & Planiificare', Icon: Icons.Analiza },
   { id: 'design', nume: 'Design & Prototipuri', Icon: Icons.Design },
   { id: 'bazadate', nume: 'Bază de date (Design schemă)', Icon: Icons.BazaDate },
   { id: 'cod', nume: 'Implementare Cod', Icon: Icons.Cod },
