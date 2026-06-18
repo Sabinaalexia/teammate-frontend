@@ -146,7 +146,7 @@ function DashboardAuditMembri({ phases }) {
             <div className="w-full flex flex-col items-center">
               <div className="text-center mb-4">
                 <h4 className="font-bold text-sm text-gray-800 uppercase">Rata de livrare realizată</h4>
-                <p className="text-xs text-gray-500 font-medium">Progresul real al fiecarulmembru</p>
+                <p className="text-xs text-gray-500 font-medium">Progresul real de performanță per membru</p>
               </div>
               <div style={{ width: '100%', height: 280 }}>
                 <ResponsiveContainer>
@@ -183,7 +183,6 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
   const [assignedTo, setAssignedTo] = useState([]);
   const [search, setSearch] = useState('');
   const [assignMode, setAssignMode] = useState('manual');
-  // ── lista de membri aleși aleatoriu (acumulare) ──
   const [randomPickedList, setRandomPickedList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -193,15 +192,12 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
     m.username.toLowerCase().includes(search.toLowerCase())
   );
 
-  // ── click pe butonul "Aleatoriu" din toggle: alege direct un nou membru ──
   const handleRandomToggleClick = () => {
     if (assignMode !== 'random') {
-      // prima activare: reset și alege primul
       setAssignMode('random');
       setAssignedTo([]);
       pickOneRandom([]);
     } else {
-      // deja în modul random: adaugă încă unul
       pickOneRandom(randomPickedList);
     }
   };
@@ -209,7 +205,7 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
   const pickOneRandom = (alreadyPicked) => {
     const alreadyIds = alreadyPicked.map(m => m.id);
     const available = members.filter(m => !alreadyIds.includes(m.id));
-    if (available.length === 0) return; // toți au fost aleși
+    if (available.length === 0) return;
     const picked = available[Math.floor(Math.random() * available.length)];
     setRandomPickedList(prev => [...prev, picked]);
   };
@@ -251,7 +247,7 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Titlu <span className="text-red-500">*</span></label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border-2 border-[#8B1538] rounded-lg text-sm focus:outline-none"
-              />
+              placeholder="ex: Cautare pe Google Scholar" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descriere</label>
@@ -273,7 +269,6 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium border-2 transition ${assignMode === 'manual' ? 'bg-[#8B1538] text-white border-[#8B1538]' : 'border-gray-200 text-gray-500'}`}>
                 Manual
               </button>
-              {/* ── click direct alege un nou membru aleatoriu ── */}
               <button type="button"
                 onClick={handleRandomToggleClick}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium border-2 transition ${assignMode === 'random' ? 'bg-[#8B1538] text-white border-[#8B1538]' : 'border-gray-200 text-gray-500'}`}>
@@ -547,95 +542,94 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
   );
 }
 
-// ── MODIFICAT: primit onGoToFeedback ca prop, banner felicitări mutat jos sub taskuri ──
 function SprintCard({ phase, sprintIndex, isActive, isCompleted, isFuture, currentUser, isOwner, members, onRefresh, onTaskUpdated, onGoToFeedback }) {
   const [showAddTask, setShowAddTask] = useState(false);
   const tasks = phase.tasks || [];
   const doneTasks = tasks.filter(t => t.status === 'DONE').length;
   const progress = tasks.length > 0 ? Math.round(doneTasks * 100 / tasks.length) : 0;
 
-  // Verifică dacă userul curent și-a terminat toate taskurile proprii
   const userTasks = tasks.filter(t => t.assignedToNames && t.assignedToNames.includes(currentUser?.name));
   const myTasksAllDone = userTasks.length > 0 && userTasks.every(t => t.status === 'DONE');
 
   return (
-    <div className="flex gap-4">
-      <div className="flex flex-col items-center flex-shrink-0">
-        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 z-10 ${isCompleted ? 'bg-gray-400 border-gray-400' : isActive ? 'bg-[#8B1538] border-[#8B1538]' : 'bg-gray-200 border-gray-300'}`} />
-        <div className={`w-0.5 flex-1 min-h-8 ${isCompleted ? 'bg-gray-300' : isActive ? 'bg-[#8B1538]' : 'bg-gray-200'}`} />
-      </div>
-      <div className={`flex-1 mb-6 rounded-2xl border-2 ${isCompleted ? 'border-gray-200 bg-gray-50' : isActive ? 'border-[#8B1538] bg-white shadow-md' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-0.5">
-                {isActive && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                {isCompleted && <span className="w-2 h-2 rounded-full bg-gray-400" />}
-                {isFuture && <span className="w-2 h-2 rounded-full bg-gray-300" />}
-                <h3 className={`font-bold text-base ${isCompleted ? 'text-gray-400' : isActive ? 'text-[#8B1538]' : 'text-gray-400'}`}>Sprint {sprintIndex}: {phase.name}</h3>
+    <div>
+      <div className="flex gap-4">
+        <div className="flex flex-col items-center flex-shrink-0">
+          <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 z-10 ${isCompleted ? 'bg-gray-400 border-gray-400' : isActive ? 'bg-[#8B1538] border-[#8B1538]' : 'bg-gray-200 border-gray-300'}`} />
+          <div className={`w-0.5 flex-1 min-h-8 ${isCompleted ? 'bg-gray-300' : isActive ? 'bg-[#8B1538]' : 'bg-gray-200'}`} />
+        </div>
+        <div className={`flex-1 mb-6 rounded-2xl border-2 ${isCompleted ? 'border-gray-200 bg-gray-50' : isActive ? 'border-[#8B1538] bg-white shadow-md' : 'border-gray-200 bg-gray-100 opacity-60'}`}>
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  {isActive && <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
+                  {isCompleted && <span className="w-2 h-2 rounded-full bg-gray-400" />}
+                  {isFuture && <span className="w-2 h-2 rounded-full bg-gray-300" />}
+                  <h3 className={`font-bold text-base ${isCompleted ? 'text-gray-400' : isActive ? 'text-[#8B1538]' : 'text-gray-400'}`}>Sprint {sprintIndex}: {phase.name}</h3>
+                </div>
+                {!isFuture && (
+                  <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
+                    {phase.startDate && phase.endDate && <span className="text-gray-900 font-medium">{formatDate(phase.startDate)} → {formatDate(phase.endDate)}</span>}
+                    {isActive && phase.endDate && (() => {
+                      const zile = zilePanaLa(phase.endDate);
+                      const color = zile === null ? '' : zile < 0 ? 'text-red-500 font-semibold' : zile <= 3 ? 'text-red-500 font-semibold' : zile <= 7 ? 'text-orange-500 font-semibold' : zile <= 14 ? 'text-yellow-600 font-semibold' : 'text-green-600 font-semibold';
+                      const label = zile === null ? '' : zile < 0 ? `Expirat acum ${Math.abs(zile)} zile` : zile === 0 ? 'Se termină azi!' : `${zile} zile rămase`;
+                      return <span className={color}>{label}</span>;
+                    })()}
+                  </div>
+                )}
               </div>
-              {!isFuture && (
-                <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
-                  {phase.startDate && phase.endDate && <span className="text-gray-900 font-medium">{formatDate(phase.startDate)} → {formatDate(phase.endDate)}</span>}
-                  {isActive && phase.endDate && (() => {
-                    const zile = zilePanaLa(phase.endDate);
-                    const color = zile === null ? '' : zile < 0 ? 'text-red-500 font-semibold' : zile <= 3 ? 'text-red-500 font-semibold' : zile <= 7 ? 'text-orange-500 font-semibold' : zile <= 14 ? 'text-yellow-600 font-semibold' : 'text-green-600 font-semibold';
-                    // ── MODIFICAT: "Se termină azi!" în loc de "Scade azi!" ──
-                    const label = zile === null ? '' : zile < 0 ? `Expirat acum ${Math.abs(zile)} zile` : zile === 0 ? 'Se termină azi!' : `${zile} zile rămase`;
-                    return <span className={color}>{label}</span>;
-                  })()}
+              {isActive && isOwner && (
+                <button onClick={() => setShowAddTask(true)} className="flex items-center gap-1.5 bg-[#8B1538] text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-[#6B0F2E] transition flex-shrink-0">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Adauga Task
+                </button>
+              )}
+            </div>
+            {!isFuture && tasks.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1"><span className="text-xs text-gray-500">Progres</span><span className={`text-xs font-bold ${getProgressTextColor(progress)}`}>{progress}%</span></div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-700 ${getProgressColor(progress)}`} style={{ width: `${progress}%` }} /></div>
+              </div>
+            )}
+            {isFuture && <p className="text-xs text-gray-400 italic mt-1">Taskurile vor fi adaugate cand ajungem la acest sprint.</p>}
+          </div>
+          {!isFuture && (
+            <div className="px-4 pb-4 border-t border-gray-100 pt-3 pl-8">
+              {tasks.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">{isOwner && isActive ? 'Niciun task adaugat. Apasa "Adauga Task".' : 'Niciun task in acest sprint.'}</p>
+              ) : (
+                <div className="relative">
+                  <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${isCompleted ? 'bg-gray-200' : 'bg-[#E8C5D0]'}`} style={{ marginLeft: '-12px' }} />
+                  {tasks.map((task, idx) => (
+                    <TaskCard key={task.id} task={task} taskNumber={idx + 1} isOwn={task.assignedTo?.includes(currentUser?.id)} isOwner={isOwner} members={members} onRefresh={onRefresh} onTaskUpdated={onTaskUpdated} />
+                  ))}
+                  {isActive && isOwner && progress === 100 && (
+                    <div className="flex justify-end mt-3">
+                      <button onClick={async () => { try { await axios.post(`/phases/${phase.id}/confirm`); onRefresh(); } catch (e) { console.error(e); } }} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition">
+                        Confirmă și treci la următorul sprint →
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-            {isActive && isOwner && (
-              <button onClick={() => setShowAddTask(true)} className="flex items-center gap-1.5 bg-[#8B1538] text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-[#6B0F2E] transition flex-shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                Adauga Task
-              </button>
-            )}
-          </div>
-          {!isFuture && tasks.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-1"><span className="text-xs text-gray-500">Progres</span><span className={`text-xs font-bold ${getProgressTextColor(progress)}`}>{progress}%</span></div>
-              <div className="h-2 bg-gray-200 rounded-full overflow-hidden"><div className={`h-full rounded-full transition-all duration-700 ${getProgressColor(progress)}`} style={{ width: `${progress}%` }} /></div>
-            </div>
           )}
-          {isFuture && <p className="text-xs text-gray-400 italic mt-1">Taskurile vor fi adaugate cand ajungem la acest sprint.</p>}
         </div>
-        {!isFuture && (
-          <div className="px-4 pb-4 border-t border-gray-100 pt-3 pl-8">
-            {tasks.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">{isOwner && isActive ? 'Niciun task adaugat. Apasa "Adauga Task".' : 'Niciun task in acest sprint.'}</p>
-            ) : (
-              <div className="relative">
-                <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${isCompleted ? 'bg-gray-200' : 'bg-[#E8C5D0]'}`} style={{ marginLeft: '-12px' }} />
-                {tasks.map((task, idx) => (
-                  <TaskCard key={task.id} task={task} taskNumber={idx + 1} isOwn={task.assignedTo?.includes(currentUser?.id)} isOwner={isOwner} members={members} onRefresh={onRefresh} onTaskUpdated={onTaskUpdated} />
-                ))}
-                {isActive && isOwner && progress === 100 && (
-                  <div className="flex justify-end mt-3">
-                    <button onClick={async () => { try { await axios.post(`/phases/${phase.id}/confirm`); onRefresh(); } catch (e) { console.error(e); } }} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition">
-                      Confirmă și treci la următorul sprint →
-                    </button>
-                  </div>
-                )}
-                {/* ── MODIFICAT: banner felicitări mutat jos, mai mic ── */}
-                {isActive && myTasksAllDone && (
-                  <div className="mt-3 flex items-center justify-between gap-3 bg-[#FFF8F0] border border-[#E8C5D0] rounded-xl px-4 py-2.5">
-                    <p className="text-xs font-semibold text-[#8B1538]">
-                      Felicitări! Ți-ai terminat toate task-urile.
-                    </p>
-                    <button onClick={onGoToFeedback}
-                      className="text-xs font-bold text-white bg-[#8B1538] hover:bg-[#6A102A] px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-                      Lasă un feedback
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
+      {/* ── Banner felicitări — în afara cardului, sub el, același design ── */}
+      {isActive && myTasksAllDone && (
+        <div className="flex items-center justify-between gap-3 bg-[#FFF8F0] border border-[#E8C5D0] rounded-xl px-4 py-2.5 mb-6 -mt-3 ml-8">
+          <p className="text-xs font-semibold text-[#8B1538]">
+            Felicitări! Ți-ai terminat toate task-urile.
+          </p>
+          <button onClick={onGoToFeedback}
+            className="text-xs font-bold text-white bg-[#8B1538] hover:bg-[#6A102A] px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+            Lasă un feedback
+          </button>
+        </div>
+      )}
       {showAddTask && <ModalAddTask phaseId={phase.id} members={members} onClose={() => setShowAddTask(false)} onSave={() => { setShowAddTask(false); onRefresh(); }} />}
     </div>
   );
@@ -743,10 +737,8 @@ function TabFeedback({ phases, currentPhaseId, currentUser, projectNotStarted, a
     setLoadingSubmit(true);
     try {
       if (editingFeedbackId) {
-        // PUT — modifica feedback-ul existent
         await axios.put(`/feedbacks/${editingFeedbackId}`, { ceAMersBine: buneText, deImbunatatit: improText });
       } else {
-        // POST — feedback nou
         await axios.post(`/phases/${phaseId}/feedbacks`, { ceAMersBine: buneText, deImbunatatit: improText });
       }
       const res = await axios.get(`/phases/${phaseId}/feedbacks`);
@@ -805,7 +797,6 @@ function TabFeedback({ phases, currentPhaseId, currentUser, projectNotStarted, a
                         <span className="text-xs text-gray-400 ml-auto">
                           {f.createdAt && new Date(f.createdAt).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                         </span>
-                        {/* ── icon modifică — doar pe propriul feedback, în dreapta datei ── */}
                         {canWriteFeedback && isMyFeedback && !isEditing && (
                           <button onClick={() => handleStartEdit(phase.id, f)}
                             title="Modifica feedback-ul meu"
@@ -832,7 +823,6 @@ function TabFeedback({ phases, currentPhaseId, currentUser, projectNotStarted, a
               </div>
             )}
 
-            {/* Formular: apare doar daca poate scrie SI nu a trimis inca (sau e in editare) */}
             {canWriteFeedback && (!alreadySubmitted || isEditing) && (
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-4">
                 <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
@@ -865,7 +855,6 @@ function TabFeedback({ phases, currentPhaseId, currentUser, projectNotStarted, a
               </div>
             )}
 
-            {/* Mesaj blocat — doar daca NU poate scrie inca */}
             {isCurrent && !isLocked && !activePhaseAllDone && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-center">
                 <p className="text-xs text-gray-500">Feedback-ul se deblocheaza dupa ce iti finalizezi toate taskurile din acest sprint.</p>
@@ -931,7 +920,6 @@ function ProjectDetailPage() {
     setPhases(prev => prev.map(p => ({ ...p, tasks: (p.tasks || []).map(t => t.id === taskId ? updatedTask : t) })));
   };
 
-  // ── MODIFICAT: scos handleArchive/handleUnarchive din nav, rămân doar în dashboard ──
   const handleArchive = async () => {
     try {
       await axios.put(`/projects/${id}/archive`);
@@ -966,9 +954,6 @@ function ProjectDetailPage() {
   }, 0)) : 0;
   const projectNotStarted = project && project.startDate && zilePanaLa(project.startDate) > 0;
 
-  // ── calculat din activePhase pentru TabFeedback ──
-  // Dacă userul are taskuri proprii → toate trebuie DONE
-  // Dacă userul nu are taskuri proprii (ex. owner) → toate taskurile din sprint DONE
   const activePhaseAllDone = (() => {
     if (!activePhase) return false;
     const tasks = activePhase.tasks || [];
@@ -1010,7 +995,6 @@ function ProjectDetailPage() {
                 <p className="text-xs text-gray-400">{project.creatorName} · Deadline: {formatDate(project.deadline)}</p>
               </div>
             </div>
-            {/* ── MODIFICAT: scos icon arhivare din nav, rămân doar badge-urile ── */}
             <div className="flex items-center gap-2">
               {zileDeadline !== null && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${zileDeadline < 0 ? 'bg-red-100 text-red-600' : zileDeadline <= 7 ? 'bg-orange-100 text-orange-600' : zileDeadline <= 30 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
@@ -1039,7 +1023,6 @@ function ProjectDetailPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        {/* TAB SPRINT — MODIFICAT: scos bannerul de sus, mutat în SprintCard */}
         {activeTab === 'sprint' && (
           <div>
             {projectNotStarted ? (
@@ -1086,7 +1069,6 @@ function ProjectDetailPage() {
           </div>
         )}
 
-        {/* TAB RAPORT */}
         {activeTab === 'raport' && (
           <div className="space-y-5">
             <div className={`bg-white rounded-2xl border-2 border-[#E8C5D0] p-5 ${projectNotStarted ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -1171,7 +1153,6 @@ function ProjectDetailPage() {
 
         {activeTab === 'audit' && <DashboardAuditMembri phases={phases} />}
 
-        {/* ── MODIFICAT: activePhaseAllDone trimis ca prop ── */}
         {activeTab === 'feedback' && (
           <TabFeedback
             phases={phases}

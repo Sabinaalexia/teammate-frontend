@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api';
+const API_URL = 'https://teammate-backend-production.up.railway.app/api';
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
