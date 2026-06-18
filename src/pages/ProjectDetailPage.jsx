@@ -65,8 +65,8 @@ const AuditCustomBarTooltip = ({ active, payload }) => {
   return null;
 };
 
-function DashboardAuditMembri({ phases }) {
-  const [selectedSprint, setSelectedSprint] = useState('total');
+function DashboardAuditMembri({ phases, activePhaseId }) {
+  const [selectedSprint, setSelectedSprint] = useState(activePhaseId ? activePhaseId.toString() : 'total');
   const calculateStats = () => {
     const statsMap = {};
     const targetPhases = selectedSprint === 'total' ? phases : phases.filter(p => p.id.toString() === selectedSprint);
@@ -155,7 +155,7 @@ function DashboardAuditMembri({ phases }) {
                     <XAxis type="number" domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fontSize: 10 }} unit="%" />
                     <YAxis dataKey="username" type="category" tick={{ fontSize: 11, fontWeight: 'bold', fill: '#374151' }} width={70} />
                     <Tooltip content={<AuditCustomBarTooltip />} />
-                    <Bar dataKey="procentPerformanta" radius={[0, 6, 6, 0]} barSize={24}>
+                    <Bar dataKey="procentPerformanta" radius={[0, 6, 6, 0]} barSize={24} isAnimationActive={true} animationDuration={800} animationEasing="ease-out">
                       {stats.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                     </Bar>
                   </BarChart>
@@ -247,7 +247,7 @@ function ModalAddTask({ phaseId, members, onClose, onSave }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Titlu <span className="text-red-500">*</span></label>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 border-2 border-[#8B1538] rounded-lg text-sm focus:outline-none"
-              placeholder="ex: Cautare pe Google Scholar" />
+              placeholder="ex: Cercetare bibliografică" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Descriere</label>
@@ -393,43 +393,61 @@ function ModalEditTask({ task, members, onClose, onSave }) {
   );
 }
 
-function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTaskUpdated }) {
-  const [showStatus, setShowStatus] = useState(false);
+function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTaskUpdated, currentUser }) {
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const [expanded, setExpanded] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [loadingComment, setLoadingComment] = useState(false);
+  const isDone = task.status === 'DONE';
+  const isInProgress = task.status === 'IN_PROGRESS';
+  const isTodo = task.status === 'TODO';
 
   useEffect(() => {
-    if (expanded) {
+    if (!expanded) return;
+    // Încarcă imediat
+    axios.get(`/tasks/${task.id}/comments`).then(res => setComments(res.data)).catch(() => {});
+    axios.get(`/tasks/${task.id}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
+    // Polling la 5s cât timp e expandat
+    const interval = setInterval(() => {
       axios.get(`/tasks/${task.id}/comments`).then(res => setComments(res.data)).catch(() => {});
-      axios.get(`/tasks/${task.id}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
-    }
+    }, 5000);
+    return () => clearInterval(interval);
   }, [expanded, task.id]);
 
   const handleStatusChange = async (newStatus) => {
-    try { await axios.put(`/tasks/${task.id}`, { status: newStatus }); setShowStatus(false); onRefresh(); } catch (e) { console.error(e); }
+    try { await axios.put(`/tasks/${task.id}`, { status: newStatus }); onRefresh(); } catch (e) { console.error(e); }
   };
+
+  // Adaugă comentariu — dacă e TODO, setează automat IN_PROGRESS
   const handleAddComment = async () => {
     if (!comment.trim()) return;
     setLoadingComment(true);
-    try { const res = await axios.post(`/tasks/${task.id}/comments`, { message: comment }); setComments(prev => [...prev, res.data]); setComment(''); } catch (e) { console.error(e); } finally { setLoadingComment(false); }
+    try {
+      if (isTodo) await axios.put(`/tasks/${task.id}`, { status: 'IN_PROGRESS' });
+      const res = await axios.post(`/tasks/${task.id}/comments`, { message: comment });
+      setComments(prev => [...prev, res.data]);
+      setComment('');
+      if (isTodo) onRefresh();
+    } catch (e) { console.error(e); } finally { setLoadingComment(false); }
   };
+
+  // Upload PDF — dacă e TODO, setează automat IN_PROGRESS
   const handleUploadPdf = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
     try {
+      if (isTodo) await axios.put(`/tasks/${task.id}`, { status: 'IN_PROGRESS' });
       await axios.post(`/tasks/${task.id}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       const res = await axios.get(`/tasks/${task.id}/attachments`);
       setAttachments(res.data);
+      if (isTodo) onRefresh();
     } catch (err) { console.error(err); }
     e.target.value = '';
   };
-  const assignedNames = task.assignedToNames?.length > 0 ? task.assignedToNames.join(', ') : 'Neatribuit';
 
   return (
     <>
@@ -437,44 +455,80 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
         <ModalEditTask task={task} members={members} onClose={() => setShowEdit(false)}
           onSave={(updated) => { onTaskUpdated(task.id, updated); setShowEdit(false); onRefresh(); }} />
       )}
-      <div className={`flex gap-3 relative ${task.status === 'DONE' && !expanded ? 'opacity-50' : ''}`}>
+      <div className={`flex gap-3 relative ${isDone && !expanded ? 'opacity-50' : ''}`}>
         <div className="flex flex-col items-center flex-shrink-0" style={{ marginLeft: '-20px' }}>
-          <div className={`w-2.5 h-2.5 rounded-full border-2 mt-3 flex-shrink-0 z-10 ${task.status === 'DONE' ? 'bg-green-500 border-green-500' : task.status === 'IN_PROGRESS' ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-400'}`} />
+          <div className={`w-2.5 h-2.5 rounded-full border-2 mt-3 flex-shrink-0 z-10 ${isDone ? 'bg-green-500 border-green-500' : isInProgress ? 'bg-blue-500 border-blue-500' : 'bg-white border-gray-400'}`} />
         </div>
-        <div className={`flex-1 rounded-xl border-2 mb-2 transition-all cursor-pointer ${expanded ? 'border-[#8B1538] bg-white shadow-md ring-2 ring-[#8B1538] ring-opacity-20' : isOwn ? 'border-[#8B1538] bg-white shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-[#8B1538] hover:bg-white hover:shadow-sm'}`}>
+        <div className={`flex-1 rounded-xl border-2 mb-2 transition-all ${expanded ? 'border-[#8B1538] bg-white shadow-md ring-2 ring-[#8B1538] ring-opacity-20' : isOwn ? 'border-[#8B1538] bg-white shadow-sm' : 'border-gray-200 bg-gray-50 hover:border-[#8B1538] hover:bg-white hover:shadow-sm'}`}>
           <div className="flex items-start justify-between p-3">
             <div className="flex-1 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-              <p className={`text-sm font-semibold ${task.status === 'DONE' ? 'text-gray-400' : isOwn ? 'text-gray-900' : 'text-gray-500'}`}>Task {taskNumber}: {task.title}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Atribuit: <span className={isOwn ? 'text-[#8B1538] font-medium' : 'text-gray-500'}>{assignedNames}{isOwn && ' (tu)'}</span></p>
+              <p className={`text-sm font-semibold ${isDone ? 'text-gray-400' : isOwn ? 'text-gray-900' : 'text-gray-500'}`}>Task {taskNumber}: {task.title}</p>
+              <p className="text-xs text-gray-400 mt-0.5">Atribuit: <span className={isOwn ? 'text-[#8B1538] font-medium' : 'text-gray-500'}>
+                {task.assignedToNames?.length > 0
+                  ? task.assignedToNames.map((name, i) => (
+                      <span key={i}>{i > 0 && ', '}{name}{name === currentUser?.name ? ' (tu)' : ''}</span>
+                    ))
+                  : 'Neatribuit'}
+              </span></p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+
+            <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+
+
+
+              {/* ── Buton edit (owner) — dacă DONE, schimbă automat în IN_PROGRESS ── */}
               {isOwner && (
-                <button onClick={() => setShowEdit(true)} className="text-gray-400 hover:text-[#8B1538] transition p-1 rounded">
+                <button onClick={async (e) => { e.stopPropagation(); if (isDone) { await handleStatusChange('IN_PROGRESS'); } setShowEdit(true); }} className="text-gray-400 hover:text-[#8B1538] transition p-1 rounded">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                 </button>
               )}
-              <div className="relative">
-                <button onClick={(e) => { e.stopPropagation(); if (isOwn) setShowStatus(!showStatus); }} className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLE[task.status] || STATUS_STYLE.TODO} ${isOwn ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}>
-                  {STATUS_OPTIONS.find(s => s.value === task.status)?.label || 'Neinceput'}
-                </button>
-                {showStatus && isOwn && (
-                  <div className="absolute right-0 bottom-8 bg-white border-2 border-[#E8C5D0] rounded-xl shadow-xl z-20 overflow-hidden w-36">
-                    {STATUS_OPTIONS.map((s) => (
-                      <button key={s.value} onClick={(e) => { e.stopPropagation(); handleStatusChange(s.value); }} className={`w-full text-left px-3 py-2 text-xs hover:bg-[#FFF8F0] transition ${task.status === s.value ? 'font-bold text-[#8B1538]' : 'text-gray-700'}`}>{s.label}</button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => setExpanded(!expanded)} className="text-gray-400">
+
+              {/* ── Status + buton acțiune contextual (doar pentru userul propriu) ── */}
+              {isOwn ? (
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[task.status] || STATUS_STYLE.TODO}`}>
+                    {STATUS_OPTIONS.find(s => s.value === task.status)?.label || 'Neînceput'}
+                  </span>
+                  {isTodo && (
+                    <button onClick={(e) => { e.stopPropagation(); handleStatusChange('IN_PROGRESS'); }}
+                      className="text-xs text-blue-600 hover:text-blue-800 transition font-medium leading-tight whitespace-nowrap">
+                      Începe task-ul
+                    </button>
+                  )}
+                  {isInProgress && (
+                    <button onClick={(e) => { e.stopPropagation(); handleStatusChange('DONE'); }}
+                      className="text-xs text-green-600 hover:text-green-800 transition font-medium leading-tight whitespace-nowrap">
+                      Marchează terminat
+                    </button>
+                  )}
+                  {isDone && (
+                    <button onClick={(e) => { e.stopPropagation(); handleStatusChange('IN_PROGRESS'); }}
+                      className="text-xs text-gray-400 hover:text-blue-600 transition leading-tight whitespace-nowrap">
+                      Schimbă în lucru
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLE[task.status] || STATUS_STYLE.TODO}`}>
+                  {STATUS_OPTIONS.find(s => s.value === task.status)?.label || 'Neînceput'}
+                </span>
+              )}
+
+              {/* Chevron expand */}
+              <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="text-gray-400">
                 <svg className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </button>
             </div>
           </div>
+
           {expanded && (
             <div className="px-3 pb-3 border-t border-gray-100 pt-2 space-y-2">
+
+
               {task.description && (
                 <p className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2"><span className="font-medium">Descriere:</span> {renderTextWithLinks(task.description)}</p>
               )}
+
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-1.5">Comentarii:</p>
                 {comments.length > 0 ? (
@@ -488,23 +542,25 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-400 italic mb-2">Nicio observatie adaugata.</p>
+                  <p className="text-xs text-gray-400 italic mb-2">Nicio observație adăugată.</p>
                 )}
-                {isOwn && (
+                {/* Input comentariu — blocat dacă DONE */}
+                {isOwn && !isDone && (
                   <div className="flex gap-2">
                     <input type="text" value={comment} onChange={(e) => setComment(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddComment(); } }}
-                      placeholder="Adauga observatii, linkuri, materiale PDF..."
+                      placeholder="Adaugă observații, linkuri, materiale PDF..."
                       className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:border-[#8B1538]" />
                     <button type="button" onClick={handleAddComment} disabled={loadingComment}
                       className="px-2.5 py-1.5 bg-[#8B1538] text-white rounded-lg text-xs hover:bg-[#6B0F2E] transition flex-shrink-0 disabled:opacity-50">Trimite</button>
                   </div>
                 )}
               </div>
+
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-medium text-gray-500">Fișiere PDF:</p>
-                  {isOwn && (
+                  {isOwn && !isDone && (
                     <label className="flex items-center gap-1 cursor-pointer text-xs text-[#8B1538] hover:underline">
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                       Atașează PDF
@@ -523,7 +579,7 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                         </div>
                         <div className="flex items-center gap-3 ml-2">
                           <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`https://teammate-backend-production.up.railway.app/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline">Deschide</button>
-                          {isOwn && (
+                          {isOwn && !isDone && (
                             <button onClick={async (e) => { e.stopPropagation(); try { await axios.delete(`/attachments/${att.id}`); setAttachments(prev => prev.filter(item => item.id !== att.id)); } catch (err) { console.error(err); } }} className="text-gray-400 hover:text-red-600 font-bold text-xs px-1">✕</button>
                           )}
                         </div>
@@ -544,6 +600,7 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
 
 function SprintCard({ phase, sprintIndex, isActive, isCompleted, isFuture, currentUser, isOwner, members, onRefresh, onTaskUpdated, onGoToFeedback }) {
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const tasks = phase.tasks || [];
   const doneTasks = tasks.filter(t => t.status === 'DONE').length;
   const progress = tasks.length > 0 ? Math.round(doneTasks * 100 / tasks.length) : 0;
@@ -580,12 +637,44 @@ function SprintCard({ phase, sprintIndex, isActive, isCompleted, isFuture, curre
                   </div>
                 )}
               </div>
-              {isActive && isOwner && (
-                <button onClick={() => setShowAddTask(true)} className="flex items-center gap-1.5 bg-[#8B1538] text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-[#6B0F2E] transition flex-shrink-0">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                  Adauga Task
-                </button>
-              )}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* ── Buton info (i) — colț dreapta sus al cardului sprint ── */}
+                {isActive && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowInfo(prev => !prev)}
+                      className="w-7 h-7 rounded-full bg-gray-800 text-white hover:bg-[#8B1538] transition flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-sm"
+                      title="Cum funcționează task-urile?">
+                      i
+                    </button>
+                    {showInfo && (
+                      <div className="absolute right-0 top-9 z-30 w-72 bg-white border-2 border-[#E8C5D0] rounded-xl shadow-xl p-4 space-y-3"
+                        onClick={(e) => e.stopPropagation()}>
+                        <p className="text-xs font-bold text-[#8B1538]">Cum funcționează statusul task-urilor?</p>
+                        <div className="flex items-start gap-2">
+                          <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs text-gray-600">După ce ți-ai terminat task-ul, apasă <strong className="text-green-600">Marchează terminat</strong>.</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <svg className="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <p className="text-xs text-gray-600">Dacă vrei să modifici un task terminat, apasă <strong className="text-blue-600">Schimbă în lucru</strong> mai întâi.</p>
+                        </div>
+                        <button onClick={() => setShowInfo(false)} className="text-xs text-gray-400 hover:text-gray-600 transition w-full text-right">Închide ✕</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {isActive && isOwner && (
+                  <button onClick={() => setShowAddTask(true)} className="flex items-center gap-1.5 bg-[#8B1538] text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-[#6B0F2E] transition flex-shrink-0">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    Adauga Task
+                  </button>
+                )}
+              </div>
             </div>
             {!isFuture && tasks.length > 0 && (
               <div>
@@ -603,31 +692,36 @@ function SprintCard({ phase, sprintIndex, isActive, isCompleted, isFuture, curre
                 <div className="relative">
                   <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${isCompleted ? 'bg-gray-200' : 'bg-[#E8C5D0]'}`} style={{ marginLeft: '-12px' }} />
                   {tasks.map((task, idx) => (
-                    <TaskCard key={task.id} task={task} taskNumber={idx + 1} isOwn={task.assignedTo?.includes(currentUser?.id)} isOwner={isOwner} members={members} onRefresh={onRefresh} onTaskUpdated={onTaskUpdated} />
+                    <TaskCard key={task.id} task={task} taskNumber={idx + 1} isOwn={task.assignedTo?.includes(currentUser?.id)} isOwner={isOwner} members={members} onRefresh={onRefresh} onTaskUpdated={onTaskUpdated} currentUser={currentUser} />
                   ))}
-                  {isActive && isOwner && progress === 100 && (
-                    <div className="flex justify-end mt-3">
-                      <button onClick={async () => { try { await axios.post(`/phases/${phase.id}/confirm`); onRefresh(); } catch (e) { console.error(e); } }} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition">
-                        Confirmă și treci la următorul sprint →
-                      </button>
-                    </div>
-                  )}
+
+
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
-      {/* ── Banner felicitări — în afara cardului, sub el, același design ── */}
+      {/* ── Banner felicitări + buton confirmare — în afara cardului, sub el ── */}
       {isActive && myTasksAllDone && (
-        <div className="flex items-center justify-between gap-3 bg-[#FFF8F0] border border-[#E8C5D0] rounded-xl px-4 py-2.5 mb-6 -mt-3 ml-8">
-          <p className="text-xs font-semibold text-[#8B1538]">
-            Felicitări! Ți-ai terminat toate task-urile.
-          </p>
-          <button onClick={onGoToFeedback}
-            className="text-xs font-bold text-white bg-[#8B1538] hover:bg-[#6A102A] px-3 py-1.5 rounded-lg transition whitespace-nowrap">
-            Lasă un feedback
-          </button>
+        <div className="flex flex-col gap-2 mb-6 -mt-3 ml-8">
+          <div className="flex items-center justify-between gap-3 bg-[#FFF8F0] border border-[#E8C5D0] rounded-xl px-4 py-2.5">
+            <p className="text-xs font-semibold text-[#8B1538]">
+              Felicitări! Ți-ai terminat toate task-urile.
+            </p>
+            <button onClick={onGoToFeedback}
+              className="text-xs font-bold text-white bg-[#8B1538] hover:bg-[#6A102A] px-3 py-1.5 rounded-lg transition whitespace-nowrap">
+              Lasă un feedback
+            </button>
+          </div>
+          {isOwner && progress === 100 && (
+            <div className="flex justify-end">
+              <button onClick={async () => { try { await axios.post(`/phases/${phase.id}/confirm`); onRefresh(); } catch (e) { console.error(e); } }}
+                className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition">
+                Confirmă și treci la următorul sprint →
+              </button>
+            </div>
+          )}
         </div>
       )}
       {showAddTask && <ModalAddTask phaseId={phase.id} members={members} onClose={() => setShowAddTask(false)} onSave={() => { setShowAddTask(false); onRefresh(); }} />}
@@ -658,10 +752,15 @@ function RaportTaskRow({ task, taskNumber }) {
   const [attachments, setAttachments] = useState([]);
 
   useEffect(() => {
-    if (expanded) {
+    if (!expanded) return;
+    // Încarcă imediat
+    axios.get(`/tasks/${task.id}/comments`).then(res => setComments(res.data)).catch(() => {});
+    axios.get(`/tasks/${task.id}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
+    // Polling la 5s cât timp e expandat
+    const interval = setInterval(() => {
       axios.get(`/tasks/${task.id}/comments`).then(res => setComments(res.data)).catch(() => {});
-      axios.get(`/tasks/${task.id}/attachments`).then(res => setAttachments(res.data)).catch(() => {});
-    }
+    }, 5000);
+    return () => clearInterval(interval);
   }, [expanded, task.id]);
 
   return (
@@ -702,7 +801,7 @@ function RaportTaskRow({ task, taskNumber }) {
                       <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                       <span className="text-xs text-gray-700 truncate">{att.fileName}</span>
                     </div>
-                    <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`https://teammate-backend-production.up.railway.app/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline font-semibold ml-2">Deschide</button>
+                    <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`http://localhost:8080/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline font-semibold ml-2">Deschide</button>
                   </div>
                 ))}
               </div>
@@ -1151,7 +1250,7 @@ function ProjectDetailPage() {
           </div>
         )}
 
-        {activeTab === 'audit' && <DashboardAuditMembri phases={phases} />}
+        {activeTab === 'audit' && <DashboardAuditMembri phases={phases} activePhaseId={activePhase?.id} />}
 
         {activeTab === 'feedback' && (
           <TabFeedback

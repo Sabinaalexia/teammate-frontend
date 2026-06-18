@@ -88,7 +88,11 @@ function DashboardPage() {
   const handleMarkAsRead = async (notifId) => {
     try {
       await axios.put(`/notifications/${notifId}/read`);
-      setNotifications(prev => prev.filter(n => n.id !== notifId));
+      setNotifications(prev => {
+        const updated = prev.filter(n => n.id !== notifId);
+        if (updated.length === 0) setShowNotificationsDropdown(false);
+        return updated;
+      });
     } catch (e) { console.error(e); }
   };
 
@@ -96,6 +100,7 @@ function DashboardPage() {
     try {
       await axios.put('/notifications/read-all');
       setNotifications([]);
+      setShowNotificationsDropdown(false);
     } catch (e) { console.error(e); }
   };
 
@@ -256,7 +261,9 @@ function DashboardPage() {
   const handleAcceptInvitation = async (id) => {
     try {
       await axios.post(`/invitations/${id}/accept`);
-      fetchPendingInvitations();
+      const res = await axios.get('/invitations/pending');
+      setPendingInvitations(res.data);
+      if (res.data.length === 0) setShowInvitationsDropdown(false);
       fetchProjects();
     } catch (e) { console.error(e); }
   };
@@ -264,7 +271,9 @@ function DashboardPage() {
   const handleRejectInvitation = async (id) => {
     try {
       await axios.post(`/invitations/${id}/reject`);
-      fetchPendingInvitations();
+      const res = await axios.get('/invitations/pending');
+      setPendingInvitations(res.data);
+      if (res.data.length === 0) setShowInvitationsDropdown(false);
     } catch (e) { console.error(e); }
   };
 
@@ -297,7 +306,7 @@ function DashboardPage() {
     const acceptati = project.members.filter(m => !m.includes('|PENDING')).length;
     const lipsesc = total - acceptati;
     if (lipsesc <= 0) return null;
-    return lipsesc === 1 ? 'Mai lipsește 1 membru' : `Mai lipsesc ${lipsesc} membri`;
+    return lipsesc === 1 ? 'Un membru mai trebuie să accepte invitația' : `${lipsesc} membri mai trebuie să accepte invitația`;
   };
 
   if (!user) return null;
@@ -379,13 +388,13 @@ function DashboardPage() {
                                 )}
                                 {notif.type === 'TASK_MODIFIED' && (
                                   <button onClick={() => { handleMarkAsRead(notif.id); navigate(`/projects/${notif.projectId}`); setShowNotificationsDropdown(false); }}
-                                    className="mt-2 w-full border border-[#8B1538] text-[#8B1538] text-xs font-medium py-1.5 rounded-lg hover:bg-[#FFF8F0] transition">
+                                    className="mt-2 w-full bg-yellow-400 hover:bg-yellow-500 text-yellow-900 text-xs font-bold py-1.5 rounded-lg transition">
                                     Intră să vezi modificarea
                                   </button>
                                 )}
                                 {notif.type === 'TASK_ASSIGNED' && (
                                   <button onClick={() => { handleMarkAsRead(notif.id); navigate(`/projects/${notif.projectId}`); setShowNotificationsDropdown(false); }}
-                                    className="mt-2 w-full border border-[#8B1538] text-[#8B1538] text-xs font-medium py-1.5 rounded-lg hover:bg-[#FFF8F0] transition">
+                                    className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-1.5 rounded-lg transition">
                                     Vezi task-ul
                                   </button>
                                 )}
@@ -485,13 +494,10 @@ function DashboardPage() {
                   {user.name.charAt(0).toUpperCase()}
                 </div>
               </div>
-              <button onClick={handleLogout} title="Ieșire"
-  className="text-[#8B1538] hover:text-[#6B0F2E] p-2 rounded-lg hover:bg-[#F5E6E8] transition">
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-  </svg>
-</button>
+              <button onClick={handleLogout}
+                className="text-[#8B1538] hover:text-[#6B0F2E] text-sm font-medium px-3 py-2 rounded-lg hover:bg-[#F5E6E8] transition">
+                Ieșire
+              </button>
             </div>
           </div>
         </div>
