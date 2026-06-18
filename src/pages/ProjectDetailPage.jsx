@@ -522,7 +522,7 @@ function TaskCard({ task, taskNumber, isOwn, isOwner, members, onRefresh, onTask
                           <span className="text-xs text-gray-400 flex-shrink-0">· {att.uploadedByName}</span>
                         </div>
                         <div className="flex items-center gap-3 ml-2">
-                          <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`http://localhost:8080/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline">Deschide</button>
+                          <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`https://teammate-backend-production.up.railway.app/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline">Deschide</button>
                           {isOwn && (
                             <button onClick={async (e) => { e.stopPropagation(); try { await axios.delete(`/attachments/${att.id}`); setAttachments(prev => prev.filter(item => item.id !== att.id)); } catch (err) { console.error(err); } }} className="text-gray-400 hover:text-red-600 font-bold text-xs px-1">✕</button>
                           )}
@@ -702,7 +702,7 @@ function RaportTaskRow({ task, taskNumber }) {
                       <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                       <span className="text-xs text-gray-700 truncate">{att.fileName}</span>
                     </div>
-                    <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`http://localhost:8080/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline font-semibold ml-2">Deschide</button>
+                    <button onClick={async () => { try { const token = sessionStorage.getItem('token'); const response = await fetch(`https://teammate-backend-production.up.railway.app/api/attachments/${att.id}/download`, { headers: { 'Authorization': `Bearer ${token}` } }); const blob = await response.blob(); const url = URL.createObjectURL(blob); window.open(url, '_blank'); } catch (e) { console.error(e); } }} className="text-xs text-[#8B1538] hover:underline font-semibold ml-2">Deschide</button>
                   </div>
                 ))}
               </div>
