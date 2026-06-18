@@ -631,7 +631,7 @@ function SprintCard({ phase, sprintIndex, isActive, isCompleted, isFuture, curre
                     {isActive && phase.endDate && (() => {
                       const zile = zilePanaLa(phase.endDate);
                       const color = zile === null ? '' : zile < 0 ? 'text-red-500 font-semibold' : zile <= 3 ? 'text-red-500 font-semibold' : zile <= 7 ? 'text-orange-500 font-semibold' : zile <= 14 ? 'text-yellow-600 font-semibold' : 'text-green-600 font-semibold';
-                      const label = zile === null ? '' : zile < 0 ? `Expirat acum ${Math.abs(zile)} zile` : zile === 0 ? 'Se termină azi!' : `${zile} zile rămase`;
+                      const label = zile === null ? '' : zile < 0 ? `Expirat acum ${Math.abs(zile)} zile` : zile === 0 ? 'Se termină azi!' : zile === 1 ? '1 zi rămasă' : `${zile} zile rămase`;
                       return <span className={color}>{label}</span>;
                     })()}
                   </div>
